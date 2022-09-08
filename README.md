@@ -26,9 +26,10 @@ at the moment the interpreter has the following ***reserved keywords***:
 - (quote **args**)
 - (quasiquote **args**)
 - (try* A (catch* E B)) ; try to eval A , if any exception occurs it eval B with exception value bind to E symbol
-
+```
 and the following built-in functions: 
 <br>
+``` lisp
 - (quit)
 - (eval **ast**)<br/>
 
