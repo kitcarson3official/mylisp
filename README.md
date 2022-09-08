@@ -6,8 +6,14 @@ My version of LISP in C++ following (not properly) the [Make a Lisp](https://git
 # BUILD
 The only dependency is [cpp-linenoise](https://github.com/yhirose/cpp-linenoise) which is however included in
 sources as a header only library.
-there are a cmake and a powershell scripts to help you compile, run and clean the
-project but it is really simple to compile it in you preferred way.
+
+``` bash
+git clone https://github.com/kitcarson3official/mylisp
+cd mylisp
+mkdir build && cd build
+cmake ..
+cmake --build .
+```
 
 # INTERPRETER
 at the moment the interpreter has the following ***reserved keywords***:
