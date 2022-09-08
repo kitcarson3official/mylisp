@@ -17,6 +17,7 @@ cmake --build .
 
 # INTERPRETER
 at the moment the interpreter has the following ***reserved keywords***:
+~~~ lisp
 - (fn* (***list of args***) ***body***)
 - (def! ***simbol*** ***expr***)
 - (let* (**list of symbols and values**) **expr**)
@@ -84,7 +85,7 @@ and the following built-in functions:
 
 there is a repl mode and a cli
 the last as the following pattern
-
+``` bash
 mylisp FILENAME [ARGS ...]
 ```
 and eval the content of FILENAME passing ARGS to it
