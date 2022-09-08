@@ -17,7 +17,7 @@ cmake --build .
 
 # INTERPRETER
 at the moment the interpreter has the following ***reserved keywords***:
-~~~ lisp
+``` lisp
 - (fn* (***list of args***) ***body***)
 - (def! ***simbol*** ***expr***)
 - (let* (**list of symbols and values**) **expr**)
