@@ -4,8 +4,8 @@ the lisp interpreter the world was waiting for
 My version of LISP in C++ following (not properly) the [Make a Lisp](https://github.com/kanaka/mal) project.
 
 # BUILD
-The only dependency is [cpp-linenoise](https://github.com/yhirose/cpp-linenoise)
-and you need a c++-14 at least compatible compiler<br>
+The only dependency is [cpp-linenoise](https://github.com/yhirose/cpp-linenoise) which is however included in
+sources as a header only library.
 there are a cmake and a powershell scripts to help you compile, run and clean the
 project but it is really simple to compile it in you preferred way.
 
