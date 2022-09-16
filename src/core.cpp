@@ -21,6 +21,63 @@ shared_ptr<Environment> initialize() {
 
   core->set(str("false"), boolean(false));
 
+  core->set(str("nil?"), func([](shared_ptr<List> args) {
+              if (args->elements[0]->type == NIL)
+                return boolean(true);
+              else
+                return boolean(false);
+            }));
+
+  core->set(str("symbol?"), func([](shared_ptr<List> args) {
+              if (args->elements[0]->type == SYMBOL)
+                return boolean(true);
+              else
+                return boolean(false);
+            }));
+
+  core->set(str("keyword?"), func([](shared_ptr<List> args) {
+              if (args->elements[0]->type == KEYWORD)
+                return boolean(true);
+              else
+                return boolean(false);
+            }));
+
+  core->set(str("vector?"), func([](shared_ptr<List> args) {
+              if (args->elements[0]->type == VEC)
+                return boolean(true);
+              else
+                return boolean(false);
+            }));
+
+  core->set(str("sequential?"), func([](shared_ptr<List> args) {
+              if (args->elements[0]->type == VEC or
+                  args->elements[0]->type == LIST)
+                return boolean(true);
+              else
+                return boolean(false);
+            }));
+
+  core->set(str("map?"), func([](shared_ptr<List> args) {
+              if (args->elements[0]->type == DICT)
+                return boolean(true);
+              else
+                return boolean(false);
+            }));
+
+  core->set(str("true?"), func([](shared_ptr<List> args) {
+              if (args->elements[0]->type == BOOL)
+                return to_obj(boolean(to_bool(args->elements[0])->value()));
+              else
+                return to_obj(exception("true?: bad parameter passed"));
+            }));
+
+  core->set(str("false?"), func([](shared_ptr<List> args) {
+              if (args->elements[0]->type == BOOL)
+                return to_obj(boolean(not to_bool(args->elements[0])->value()));
+              else
+                return to_obj(exception("true?: bad parameter passed"));
+            }));
+
   core->set(str("eval"), func([core](shared_ptr<List> args) {
               if (args->elements.size() == 1)
                 return EVAL(args->elements[0], core);
@@ -29,6 +86,77 @@ shared_ptr<Environment> initialize() {
                 for (auto el : args->elements)
                   ret->append(EVAL(el, core));
                 return to_obj(nil());
+              }
+            }));
+  core->set(str("throw"), func([](shared_ptr<List> args) {
+              if (args->elements.size() == 1) {
+                Runtime::unhandled_exc = args->elements[0];
+                return to_obj(nil());
+              } else {
+                return to_obj(exception("throw: bad parameter passed"));
+              }
+            }));
+
+  core->set(
+      str("apply"), func([](shared_ptr<List> args) {
+        if (args->elements.size() > 0 and args->elements[0]->type == FUNCTION) {
+          shared_ptr<List> fargs = list();
+          for (unsigned int i = 1; i < args->elements.size() - 1; i++) {
+            if (args->elements[i]->type == LIST) {
+              shared_ptr<List> tmp_list = to_list(args->elements[i]);
+              for (unsigned int i = 0; i < tmp_list->elements.size(); i++)
+                fargs->append(tmp_list->elements[i]);
+            } else if (args->elements[i]->type == VEC) {
+              shared_ptr<Vec> tmp_vec = to_vec(args->elements[i]);
+              for (unsigned int i = 0; i < tmp_vec->elements.size(); i++)
+                fargs->append(tmp_vec->elements[i]);
+            } else {
+              fargs->append(args->elements[i]);
+            }
+          }
+          shared_ptr<Object> last_element =
+              args->elements[args->elements.size() - 1];
+          if (last_element->type == LIST) {
+            for (auto el : to_list(last_element)->elements)
+              fargs->append(el);
+          } else if (last_element->type == VEC) {
+            for (auto el : to_vec(last_element)->elements)
+              fargs->append(el);
+          } else {
+            fargs->append(last_element);
+          }
+          return to_function(args->elements[0])->call(fargs);
+        } else {
+          shared_ptr<Exception> ret = exception("apply: bad parameter passed");
+          Runtime::unhandled_exc = ret;
+          return to_obj(exception("apply: bad parameter passed"));
+        }
+      }));
+
+  core->set(str("map"), func([](shared_ptr<List> args) {
+              if (args->elements.size() == 2 and
+                  args->elements[0]->type == FUNCTION and
+                  (args->elements[1]->type == LIST or
+                   args->elements[1]->type == VEC)) {
+                shared_ptr<List> ret = list();
+                if (args->elements[1]->type == LIST) {
+                  shared_ptr<List> tmp_list = to_list(args->elements[1]);
+                  for (auto el : tmp_list->elements) {
+                    shared_ptr<List> fargs = list();
+                    fargs->append(el);
+                    ret->append(to_function(args->elements[0])->call(fargs));
+                  }
+                } else {
+                  shared_ptr<Vec> tmp_vec = to_vec(args->elements[1]);
+                  for (auto el : tmp_vec->elements) {
+                    shared_ptr<List> fargs = list();
+                    fargs->append(el);
+                    ret->append(to_function(args->elements[0])->call(fargs));
+                  }
+                }
+                return to_obj(ret);
+              } else {
+                return to_obj(exception("map: bad parameter passed"));
               }
             }));
 
@@ -308,6 +436,28 @@ shared_ptr<Environment> initialize() {
               }
             }));
 
+  core->set(str("symbol"), func([](shared_ptr<List> args) {
+              if (args->elements.size() == 1 and
+                  args->elements[0]->type == STRING) {
+                return to_obj(symbol(to_str(args->elements[0])->value()));
+              } else {
+                return to_obj(exception("symbol: bad parameter passed"));
+              }
+            }));
+
+  core->set(
+      str("keyword"), func([](shared_ptr<List> args) {
+        if (args->elements.size() == 1 and args->elements[0]->type == STRING) {
+          return to_obj(keyword(":" + to_str(args->elements[0])->value()));
+        } else if (args->elements.size() == 1 and
+                   args->elements[0]->type == KEYWORD)
+          return to_obj(args->elements[0]);
+        else
+          return to_obj(exception("keyword: bad parameter passed"));
+      }));
+
+  // TODO
+
   core->set(str("list"), func([](shared_ptr<List> args) {
               shared_ptr<List> ret = list();
               for (auto el : args->elements)
@@ -321,6 +471,26 @@ shared_ptr<Environment> initialize() {
               else
                 return boolean(false);
             }));
+
+  core->set(
+      str("hash-map"), func([](shared_ptr<List> args) {
+        shared_ptr<Dict> ret;
+        if (args->elements.size() % 2 == 0) {
+          bool valid = true;
+          for (unsigned int i = 0; i < args->elements.size(); i += 2) {
+            if (args->elements[i]->type == SYMBOL) {
+              ret->append(to_symbol(args->elements[i]), args->elements[i + 1]);
+            } else {
+              return to_obj(exception("hash-map: error, " +
+                                      to_symbol(args->elements[i])->value() +
+                                      " is not a symbol"));
+            }
+          }
+        } else {
+          return to_obj(exception("hash-map: bad number of parameters"));
+        }
+        return to_obj(ret);
+      }));
 
   core->set(
       str("nth"), func([](shared_ptr<List> args) {
@@ -418,6 +588,13 @@ shared_ptr<Environment> initialize() {
                 cout << "vec: too many arguments" << endl;
                 return to_obj(nil());
               }
+            }));
+
+  core->set(str("vector"), func([](shared_ptr<List> args) {
+              shared_ptr<Vec> ret;
+              for (auto el : args->elements)
+                ret->append(el);
+              return ret;
             }));
 
   core->set(str("cons"), func([](shared_ptr<List> args) {
