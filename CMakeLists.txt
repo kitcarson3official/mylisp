@@ -12,11 +12,15 @@ set(SOURCES
   printer.cpp printer.hpp
   repl.cpp    repl.hpp
   core.cpp    core.hpp
+  extern.hpp
   )
 list(TRANSFORM SOURCES PREPEND "src/")
 add_library(libmylisp ${SOURCES})
+add_library(libmylispextern
+  src/extern.cpp
+)
 set_target_properties(libmylisp PROPERTIES LINKER_LANGUAGE CXX)
 
 add_executable(mylisp
   src/main.cpp)
-target_link_libraries(mylisp libmylisp)
+target_link_libraries(mylisp libmylisp libmylispextern)

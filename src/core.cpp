@@ -2,9 +2,12 @@
 #include "parser.hpp"
 #include "printer.hpp"
 #include "repl.hpp"
+#include "extern.hpp"
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <string>
+#include <variant>
 using std::endl, std::cout;
 
 namespace ml {
@@ -361,6 +364,22 @@ shared_ptr<Environment> initialize() {
               return to_str(nil());
             }));
 
+  core->set(str("readline"), func([](shared_ptr<List> args) {
+              if (args->elements.size() == 0 or
+                  (args->elements.size() == 1 and
+                   args->elements[0]->type == STRING)) {
+                string ret, prompt = args->elements.size() == 1
+                                    ? to_str(args->elements[0])->value()
+                                    : "";
+		ret = readline(prompt);
+                if (ret.size() > 0)
+                  return to_obj(str(ret));
+                else
+                  return to_obj(nil());
+              }
+              return to_obj(exception("readline: bad argument passed"));
+            }));
+
   core->set(str("atom"), func([](shared_ptr<List> args) {
               if (args->elements.size() == 1) {
                 return to_obj(atom(args->elements[0]));
@@ -491,6 +510,103 @@ shared_ptr<Environment> initialize() {
         }
         return to_obj(ret);
       }));
+
+  core->set(
+      str("assoc"), func([](shared_ptr<List> args) {
+        if (args->elements.size() > 0 and args->elements.size() % 2 == 1 and
+            args->elements[0]->type == DICT) {
+          bool valid = true;
+          for (unsigned int i = 1; i < args->elements.size(); i += 2)
+            if (args->elements[i]->type != SYMBOL) {
+              valid = false;
+              break;
+            }
+          if (valid) {
+            shared_ptr<Dict> ret;
+            for (auto el : to_dict(args->elements[0])->map) {
+              ret->append(el.first, el.second);
+            }
+            for (unsigned int i = 1; i < args->elements.size(); i += 2)
+              ret->append(to_symbol(args->elements[i]), args->elements[i + 1]);
+            return to_obj(ret);
+          } else {
+            return to_obj(exception("assoc: key argument must be symbol"));
+          }
+        } else {
+          return to_obj(exception("assoc: bad argument passed"));
+        }
+      }));
+
+  core->set(str("dissoc"), func([](shared_ptr<List> args) {
+              if (args->elements.size() > 0 and
+                  args->elements[0]->type == DICT) {
+                shared_ptr<Dict> ret;
+                auto find_in_args = [args](shared_ptr<Symbol> key) {
+                  bool found = false;
+                  for (unsigned int i = 1; i < args->elements.size(); i++) {
+                    if (to_symbol(args->elements[i])->value() == key->value()) {
+                      return true;
+                    }
+                  }
+                  return found;
+                };
+                for (auto el : to_dict(args->elements[0])->map) {
+                  if (not find_in_args(to_symbol(el.first)))
+                    ret->append(el.first, el.second);
+                }
+                return to_obj(ret);
+              } else
+                return to_obj(exception("dissoc: bad argument passed"));
+            }));
+
+  core->set(str("get"), func([](shared_ptr<List> args) {
+              if (args->elements.size() == 2 and
+                  args->elements[0]->type == DICT and
+                  args->elements[1]->type == SYMBOL) {
+                if (to_dict(args->elements[0])
+                        ->map.contains(to_symbol(args->elements[1])))
+                  return to_dict(args->elements[0])
+                      ->map[to_symbol(args->elements[1])];
+                else
+                  return to_obj(nil());
+              } else
+                return to_obj(exception("get: bad arguments passed"));
+            }));
+
+  core->set(str("contains?"), func([](shared_ptr<List> args) {
+              if (args->elements.size() == 2 and
+                  args->elements[0]->type == DICT and
+                  args->elements[1]->type == SYMBOL) {
+                if (to_dict(args->elements[0])
+                        ->map.contains(to_symbol(args->elements[1])))
+                  return to_obj(boolean(true));
+                else
+                  return to_obj(boolean(false));
+              } else
+                return to_obj(exception("contains?: bad arguments passed"));
+            }));
+
+  core->set(str("keys"), func([](shared_ptr<List> args) {
+              if (args->elements.size() == 1 and
+                  args->elements[0]->type == DICT) {
+                shared_ptr<List> ret = list();
+                for (auto el : to_dict(args->elements[0])->map)
+                  ret->append(el.first);
+                return to_obj(ret);
+              } else
+                return to_obj(exception("keys: bad argument passed"));
+            }));
+
+  core->set(str("vals"), func([](shared_ptr<List> args) {
+              if (args->elements.size() == 1 and
+                  args->elements[0]->type == DICT) {
+                shared_ptr<List> ret = list();
+                for (auto el : to_dict(args->elements[0])->map)
+                  ret->append(el.second);
+                return to_obj(ret);
+              } else
+                return to_obj(exception("keys: bad argument passed"));
+            }));
 
   core->set(
       str("nth"), func([](shared_ptr<List> args) {
@@ -767,6 +883,8 @@ shared_ptr<Environment> initialize() {
   ))
   )",
       core);
+
+  rep("(def! *host-language* \"c++\")", core);
   return core;
 }
 
