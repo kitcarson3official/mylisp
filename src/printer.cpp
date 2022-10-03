@@ -25,7 +25,9 @@ string print_element(shared_ptr<Object> element) {
   case NIL:
     return print_nil(to_nil(element));
   case FUNCTION:
-    return "FUNCTION";
+    return "FUNCTION: " + to_function(element)->name;
+  case EXCEPTION:
+    return "EXCEPTION: " + to_exception(element)->value();
   default:
     return "nil";
   }
@@ -139,7 +141,11 @@ string debug_object(shared_ptr<Object> obj, unsigned int level) {
     ret += tabs(level) + "ENVIRONMENT" + '\n';
     break;
   case FUNCTION:
-    ret += tabs(level) + "FUNCTION" + '\n';
+    ret += tabs(level) + "FUNCTION: " + to_function(obj)->name + "\n" +
+           "with arguments\n" +
+           debug_object(to_function(obj)->arguments, level + 1) + "\n" +
+           "with body\n" +
+           debug_object(to_function(obj)->expression, level + 1) + "\n";
     break;
   case SYMBOL:
     ret += tabs(level) + "SYMBOL: " + to_symbol(obj)->value() + '\n';
@@ -176,6 +182,11 @@ string debug_object(shared_ptr<Object> obj, unsigned int level) {
     }
     ret += tabs(level) + "}\n";
     break;
+  case EXCEPTION:
+    ret += tabs(level) + "EXCEPTION: " + to_exception(obj)->value() + "\n";
+    break;
+  default:
+    ret += "debug_object: case not handled\n";
   }
   return ret;
 }

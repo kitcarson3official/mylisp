@@ -19,8 +19,18 @@ shared_ptr<Object> Parser::parse(std::string input) {
   // cout << "*******************\n" << endl;
 
   token_parse_index = 0;
+  shared_ptr<Vec> root = vec();
   if (not tokens.empty()) {
-    return parse_form();
+    while (token_parse_index < tokens.size()) {
+      shared_ptr<Object> expr = parse_form();
+      root->append(expr);
+    }
+    if (root->elements.size() == 0)
+      return nil();
+    else if (root->elements.size() == 1)
+      return root->elements[0];
+    else
+      return root;
   } else
     return nil();
 }
@@ -33,6 +43,7 @@ void Parser::tokenize() {
     UNKNOWN,
     STRING,
     SPACES,
+    COMMENT,
   };
 
   TOKEN_TYPE current_token = UNKNOWN;
@@ -66,6 +77,11 @@ void Parser::tokenize() {
         offset = 0;
         current_token = UNKNOWN;
       }
+      break;
+    case COMMENT:
+      if (ch == '\n')
+        current_token = UNKNOWN;
+      index++;
       break;
     case UNKNOWN:
       switch (ch) {
@@ -101,7 +117,7 @@ void Parser::tokenize() {
       case '&':
       case '\'':
       case '`':
-      case ';':
+      case '^':
         if (offset != 0)
           add_token(view.substr(index, offset));
         add_token(view.substr(index + offset, 1));
@@ -110,6 +126,13 @@ void Parser::tokenize() {
         break;
       case '\n':
       case '\t':
+        if (offset > 0)
+          add_token(view.substr(index, offset));
+        index += offset + 1;
+        offset = 0;
+        break;
+      case ';':
+        current_token = COMMENT;
         if (offset > 0)
           add_token(view.substr(index, offset));
         index += offset + 1;
@@ -209,7 +232,22 @@ shared_ptr<Object> Parser::parse_form() {
       token_parse_index++;
       splice_unquoted_list->append(parse_form());
       return splice_unquoted_list;
-    } else {
+    } else if (tokens[token_parse_index] == "^") {
+      shared_ptr<List> with_meta_list = list();
+      with_meta_list->append(symbol("with-meta"));
+      token_parse_index += 2;
+      with_meta_list->append(parse_form());
+      token_parse_index -= 2;
+      with_meta_list->append(parse_form());
+      token_parse_index += 2;
+      return with_meta_list;
+    } else if (tokens[token_parse_index] == "@") {
+      shared_ptr<List> deref_list = list();
+      deref_list->append(symbol("deref"));
+      token_parse_index++;
+      deref_list->append(parse_form());
+    }
+    else {
       return parse_atom();
     }
   } else {
@@ -301,6 +339,7 @@ shared_ptr<Dict> Parser::parse_dict() {
     case SIGNAL: {
       switch (to_signal(key)->_value) {
       case GRAPH_BRACKET_CLOSE:
+        brackets.pop();
         return ret;
       default:
         return to_dict(nil());

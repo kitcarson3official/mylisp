@@ -1,17 +1,18 @@
 #pragma once
-#include <memory>
-#include <variant>
-#include <string>
-#include <vector>
-#include <unordered_map>
-#include <functional>
-#include "inner_signals.hpp"
 #include "debug.hpp"
+#include "inner_signals.hpp"
+#include <functional>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <variant>
+#include <vector>
 using std::shared_ptr, std::vector;
 
 namespace ml {
 
 enum OBJECT_TYPE {
+  ROOT,
   ATOM,
   EXCEPTION,
   SIGNAL,
@@ -35,6 +36,14 @@ public:
   Object(OBJECT_TYPE o_type);
   OBJECT_TYPE type;
   bool is_macro = false;
+};
+
+// ROOT
+
+class Root : public Object {
+public:
+  Root();
+  vector<shared_ptr<Object>> expressions;
 };
 
 // ATOM
@@ -142,6 +151,7 @@ public:
   shared_ptr<Object> operator[](unsigned int index);
   void append(shared_ptr<Object> obj);
   vector<shared_ptr<Object>> elements;
+  shared_ptr<Object> meta;
   const bool operator==(const shared_ptr<List> other);
 };
 
@@ -153,6 +163,7 @@ public:
   shared_ptr<Object> operator[](unsigned int index);
   void append(shared_ptr<Object> obj);
   vector<shared_ptr<Object>> elements;
+  shared_ptr<Object> meta;
   const bool operator==(const shared_ptr<Vec> other);
 };
 
@@ -164,6 +175,7 @@ public:
   shared_ptr<Object> operator[](shared_ptr<Object> key);
   void append(shared_ptr<Object> key, shared_ptr<Object> value);
   std::unordered_map<shared_ptr<Object>, shared_ptr<Object>> map;
+  shared_ptr<Object> meta;
   const bool operator==(const shared_ptr<Dict> other);
 };
 
@@ -172,15 +184,19 @@ public:
 class Environment;
 class Function : public Object {
 public:
-  Function(std::function<shared_ptr<Object>(shared_ptr<List>)> f);
+  Function(std::function<shared_ptr<Object>(shared_ptr<List>)> f,
+           std::string name, std::string help);
   Function(shared_ptr<List> arguments, shared_ptr<Object> expression,
-           shared_ptr<Environment> env, bool is_macro = false);
+           shared_ptr<Environment> env, std::string name, std::string help,
+           bool is_macro = false);
   shared_ptr<Object> call(shared_ptr<List> args);
   bool compiled;
+  std::string name;
   shared_ptr<List> arguments;
   shared_ptr<Object> expression;
   shared_ptr<Environment> calling_env;
   int last_is_variadic = -1;
+  shared_ptr<Object> meta;
 
 private:
   std::function<shared_ptr<Object>(shared_ptr<List>)> f;
@@ -199,10 +215,12 @@ shared_ptr<Signal> signal(INNER_SIGNALS v);
 shared_ptr<List> list();
 shared_ptr<Vec> vec();
 shared_ptr<Dict> dict();
-shared_ptr<Function> func(std::function<shared_ptr<Object>(shared_ptr<List>)>);
+shared_ptr<Function> func(std::function<shared_ptr<Object>(shared_ptr<List>)>,
+                          std::string name = "", std::string help = "");
 shared_ptr<Function> func(shared_ptr<List> arguments,
                           shared_ptr<Object> expression,
-                          shared_ptr<Environment> env, bool is_macro = false);
+                          shared_ptr<Environment> env, std::string name,
+                          std::string help = "", bool is_macro = false);
 
 // CONVERSIONS
 

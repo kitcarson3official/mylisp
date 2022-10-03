@@ -9,7 +9,9 @@ std::string PRINT(shared_ptr<Object> input);
 std::string rep(std::string input, shared_ptr<Environment> rep_env);
 shared_ptr<Object> quasiquote(shared_ptr<Object> ast);
 bool is_macro_call(shared_ptr<Object> ast, shared_ptr<Environment> env);
-shared_ptr<Object> macroexpand(shared_ptr<Object> ast, shared_ptr<Environment> env);
+shared_ptr<Object> macroexpand(shared_ptr<Object> ast,
+                               shared_ptr<Environment> env);
+extern const std::vector<std::string> keywords;
 
 class Runtime {
 public:
@@ -17,6 +19,7 @@ public:
   int repl();
   static shared_ptr<Object> message_signal;
   static shared_ptr<Object> unhandled_exc;
+  static shared_ptr<Exception> ret_exception(std::string message);
   shared_ptr<Environment> env();
   bool running;
 

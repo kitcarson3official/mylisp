@@ -1,6 +1,7 @@
 #include "types.hpp"
 #include "env.hpp"
 #include "repl.hpp"
+#include "printer.hpp"
 #include <iostream>
 #ifdef DEBUG_Types_info
 #include "printer.hpp"
@@ -10,6 +11,9 @@ using std::cout, std::endl, std::make_shared;
 namespace ml {
 
 Object::Object(OBJECT_TYPE o_type) { type = o_type; }
+
+// ROOT TYPE
+Root::Root() : Object(ROOT) {}
 
 // ATOM TYPE
 
@@ -78,7 +82,7 @@ const bool Str::operator==(const shared_ptr<Str> other) {
 
 // LIST
 
-List::List() : Object(LIST) {}
+List::List() : Object(LIST), meta(nil()) {}
 
 void List::append(shared_ptr<Object> obj) { elements.push_back(obj); }
 
@@ -143,7 +147,7 @@ const bool List::operator==(const shared_ptr<List> other) {
 
 // VECTOR
 
-Vec::Vec() : Object(VEC) {}
+Vec::Vec() : Object(VEC), meta(nil()) {}
 
 void Vec::append(shared_ptr<Object> obj) { elements.push_back(obj); }
 
@@ -207,10 +211,14 @@ const bool Vec::operator==(const shared_ptr<Vec> other) {
 }
 // DICT
 
-Dict::Dict() : Object(DICT) {}
+Dict::Dict() : Object(DICT), meta(nil()) {}
 
 void Dict::append(shared_ptr<Object> key, shared_ptr<Object> value) {
-  map.insert_or_assign(key, value);
+  if (key->type == STRING or key->type == KEYWORD)
+    map.insert_or_assign(key, value);
+  else
+    Runtime::unhandled_exc =
+        exception("dictionary keys must be string or keywords");
 }
 
 shared_ptr<Object> Dict::operator[](shared_ptr<Object> key) {
@@ -277,30 +285,41 @@ const bool Dict::operator==(const shared_ptr<Dict> other) {
 
 // FUNCTION
 
-Function::Function(std::function<shared_ptr<Object>(shared_ptr<List>)> f)
-    : Object(FUNCTION) {
+Function::Function(std::function<shared_ptr<Object>(shared_ptr<List>)> f,
+                   std::string name, std::string help)
+    : Object(FUNCTION), meta(nil()) {
   compiled = true;
+  this->name = name;
   this->f = f;
   this->arguments = to_list(nil());
   this->expression = to_obj(nil());
 }
 
 Function::Function(shared_ptr<List> arguments, shared_ptr<Object> expression,
-                   shared_ptr<Environment> env, bool is_macro)
-    : Object(FUNCTION) {
+                   shared_ptr<Environment> env, std::string name,
+                   std::string help, bool is_macro)
+    : Object(FUNCTION), meta(nil()) {
   compiled = false;
   this->f = nullptr;
-  this->arguments = arguments;
   for (unsigned int i = 0; i < arguments->elements.size(); i++) {
     if (to_symbol(arguments->elements[i])->value() == "&") {
       if (i == arguments->elements.size() - 2) {
-        last_is_variadic = true;
+        last_is_variadic = i + 1;
       } else {
         cout << "variadic symbol & must precede the last parameter name"
              << endl;
         exit(1);
       }
     }
+  }
+  if (last_is_variadic >= 0) {
+    this->arguments = list();
+    for (unsigned int i = 0; i < arguments->elements.size(); i++)
+      if (i != arguments->elements.size() - 2)
+        this->arguments->append(
+            symbol(to_symbol(arguments->elements[i])->value()));
+  } else {
+    this->arguments = arguments;
   }
   this->expression = expression;
   this->calling_env = env;
@@ -311,14 +330,19 @@ shared_ptr<Object> Function::call(shared_ptr<List> args) {
     return f(args);
   else {
     shared_ptr<Environment> closure = make_shared<Environment>(calling_env);
-    if (args->elements.size() == arguments->elements.size()) {
+    if (args->elements.size() == arguments->elements.size() or
+        last_is_variadic >= 0) {
       for (unsigned int i = 0; i < args->elements.size(); i++) {
         closure->set(arguments->elements[i], args->elements[i]);
       }
       return EVAL(expression, closure);
     } else {
-      cout << "FUNCTION: wrong number of parameters" << endl;
-      return nil();
+      return Runtime::ret_exception(
+          "FUNCTION " + name + " : wrong number of parameters\nis_macro: " +
+          std::to_string(is_macro) +
+          +"\nlast_is_variadic: " + std::to_string(last_is_variadic) +
+          "\narguments:\n" + debug_object(arguments) + "\npassed arguments:\n" +
+          debug_object(args) + "\n");
     }
   }
 }
@@ -339,14 +363,16 @@ shared_ptr<List> list() { return make_shared<List>(); }
 shared_ptr<Vec> vec() { return make_shared<Vec>(); }
 shared_ptr<Dict> dict() { return make_shared<Dict>(); }
 shared_ptr<Signal> signal(INNER_SIGNALS v) { return make_shared<Signal>(v); }
-shared_ptr<Function>
-func(std::function<shared_ptr<Object>(shared_ptr<List>)> f) {
-  return make_shared<Function>(f);
+shared_ptr<Function> func(std::function<shared_ptr<Object>(shared_ptr<List>)> f,
+                          std::string name, std::string help) {
+  return make_shared<Function>(f, name, help);
 }
 shared_ptr<Function> func(shared_ptr<List> arguments,
                           shared_ptr<Object> expression,
-                          shared_ptr<Environment> env, bool is_macro) {
-  return make_shared<Function>(arguments, expression, env, is_macro);
+                          shared_ptr<Environment> env, std::string name,
+                          std::string help, bool is_macro) {
+  return make_shared<Function>(arguments, expression, env, name, help,
+                               is_macro);
 }
 
 // CONVERSIONS

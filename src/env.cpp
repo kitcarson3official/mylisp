@@ -59,7 +59,7 @@ shared_ptr<Object> Environment::get(shared_ptr<Symbol> key) {
     shared_ptr<Exception> exc =
         exception("Symbol not found exception.\n" + to_symbol(key)->value());
     Runtime::unhandled_exc = exc;
-    return exc;
+    return nil();
   }
 }
 
