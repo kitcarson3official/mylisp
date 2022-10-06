@@ -1285,13 +1285,12 @@ shared_ptr<Environment> initialize() {
   )",
       core); */
 
-  // rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs)
-  // "
-  //     "(if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to "
-  //     "cond\")) (cons 'cond (rest (rest xs)))))))",
-  //     core);
+  rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs)"
+      "(if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to "
+      "cond\")) (cons 'cond (rest (rest xs)))))))",
+      core);
 
-  rep("(defmacro! cond (fn* (& xs) (prn xs)))", core);
+  // rep("(defmacro! cond (fn* (& xs) (prn xs)))", core);
 
   rep("(def! *host-language* \"c++\")", core);
   return core;

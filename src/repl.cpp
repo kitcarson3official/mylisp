@@ -191,7 +191,6 @@ bool is_macro_call(shared_ptr<Object> ast, shared_ptr<Environment> env) {
 shared_ptr<Object> macroexpand(shared_ptr<Object> ast,
                                shared_ptr<Environment> env) {
   while (is_macro_call(ast, env)) {
-    cout << "Macro" << endl;
     shared_ptr<Function> mf =
         to_function(env->get(to_symbol(to_list(ast)->elements[0])));
     shared_ptr<List> args = list();

@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
           ml::to_signal(rnt.message_signal)->_value == ml::QUIT) {
         break;
       }
-      cout << ret << endl;
+      // cout << ret << endl;
       linenoise::AddHistory(cmd.c_str());
     }
     linenoise::SaveHistory(history_path.c_str());
@@ -31,9 +31,8 @@ int main(int argc, char **argv) {
     for (unsigned int i = 2; i < argc; i++) {
       eargv->append(p.parse(argv[i]));
     }
-    rnt.env()->set(ml::str("ARGV"), eargv);
-    cout << ml::rep("(load-file \"" + std::string(argv[1]) + "\")", rnt.env())
-         << endl;
+    rnt.env()->set(ml::str("*ARGV*"), eargv);
+    ml::rep("(load-file \"" + std::string(argv[1]) + "\")", rnt.env());
   }
   return 0;
 }
