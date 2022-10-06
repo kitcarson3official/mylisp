@@ -246,8 +246,8 @@ shared_ptr<Object> Parser::parse_form() {
       deref_list->append(symbol("deref"));
       token_parse_index++;
       deref_list->append(parse_form());
-    }
-    else {
+      return deref_list;
+    } else {
       return parse_atom();
     }
   } else {

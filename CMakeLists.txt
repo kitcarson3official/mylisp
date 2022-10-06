@@ -12,7 +12,7 @@ set(SOURCES
   printer.cpp printer.hpp
   repl.cpp    repl.hpp
   core.cpp    core.hpp
-  extern.hpp
+  extern.cpp  extern.hpp
   )
 list(TRANSFORM SOURCES PREPEND "src/")
 add_library(libmylisp ${SOURCES})

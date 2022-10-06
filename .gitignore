@@ -1,3 +1,5 @@
 .cache/
 build/
 history.txt
+workspace
+test.mal

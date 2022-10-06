@@ -48,10 +48,8 @@ shared_ptr<Object> Environment::get(shared_ptr<Symbol> key) {
       key_string = to_symbol(key)->value();
       break;
     default:
-      cout << "key type not valid (only string or keyword may be a key)"
-           << endl;
-      exit(1);
-      to_environment(nil());
+      return to_obj(Runtime::ret_exception(
+          "key type not valid (only string or keyword may be a key)"));
     }
     auto ret = fe->map.at(key_string);
     return ret;
@@ -61,6 +59,18 @@ shared_ptr<Object> Environment::get(shared_ptr<Symbol> key) {
     Runtime::unhandled_exc = exc;
     return nil();
   }
+}
+
+std::string Environment::get_key(shared_ptr<Object> obj){
+  for (auto el : map) {
+    if (el.second == obj) {
+      return el.first;
+    }
+  }
+  if (_outer != to<Environment>(nil()))
+    return _outer->get_key(obj);
+  else
+    return "nil";
 }
 
 shared_ptr<Environment> to_environment(shared_ptr<Object> o) {

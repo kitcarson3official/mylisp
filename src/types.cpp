@@ -1,7 +1,7 @@
 #include "types.hpp"
 #include "env.hpp"
-#include "repl.hpp"
 #include "printer.hpp"
+#include "repl.hpp"
 #include <iostream>
 #ifdef DEBUG_Types_info
 #include "printer.hpp"
@@ -299,12 +299,23 @@ Function::Function(shared_ptr<List> arguments, shared_ptr<Object> expression,
                    shared_ptr<Environment> env, std::string name,
                    std::string help, bool is_macro)
     : Object(FUNCTION), meta(nil()) {
+  /*
+   * if the function has been called with list of arguments and list of
+   * expressions it must be an interpreted function and not a compiled
+   * one.
+   * */
   compiled = false;
   this->f = nullptr;
+  /*
+   * here it is checked if the function has as the last argument a variadic
+   * argument. in such case it's position is saved int the variable
+   * *last_is_variadic* so to easy assign arguments to the variadic list when
+   * the function is called.
+   * */
   for (unsigned int i = 0; i < arguments->elements.size(); i++) {
     if (to_symbol(arguments->elements[i])->value() == "&") {
       if (i == arguments->elements.size() - 2) {
-        last_is_variadic = i + 1;
+        last_is_variadic = i;
       } else {
         cout << "variadic symbol & must precede the last parameter name"
              << endl;
@@ -312,10 +323,11 @@ Function::Function(shared_ptr<List> arguments, shared_ptr<Object> expression,
       }
     }
   }
-  if (last_is_variadic >= 0) {
+
+  if (last_is_variadic >= 0) { // then is a variadic function
     this->arguments = list();
     for (unsigned int i = 0; i < arguments->elements.size(); i++)
-      if (i != arguments->elements.size() - 2)
+      if (i != arguments->elements.size() - 2) // skip the & symbol
         this->arguments->append(
             symbol(to_symbol(arguments->elements[i])->value()));
   } else {
@@ -325,25 +337,38 @@ Function::Function(shared_ptr<List> arguments, shared_ptr<Object> expression,
   this->calling_env = env;
   this->is_macro = is_macro;
 }
+
 shared_ptr<Object> Function::call(shared_ptr<List> args) {
   if (compiled)
     return f(args);
   else {
     shared_ptr<Environment> closure = make_shared<Environment>(calling_env);
-    if (args->elements.size() == arguments->elements.size() or
-        last_is_variadic >= 0) {
-      for (unsigned int i = 0; i < args->elements.size(); i++) {
-        closure->set(arguments->elements[i], args->elements[i]);
+    if (last_is_variadic >= 0) {
+      if (arguments->elements.size() >= last_is_variadic) {
+        for (unsigned int i = 0; i < last_is_variadic; i++)
+          closure->set(arguments->elements[i], args->elements[i]);
+        shared_ptr<List> varargs = list();
+        for (unsigned int i = last_is_variadic; i < arguments->elements.size();
+             i++)
+          varargs->append(arguments->elements[i]);
+        closure->set(arguments->elements[last_is_variadic], varargs);
+      } else {
+        return to_obj(Runtime::ret_exception(
+            "Funcion <" + calling_env->get_key(shared_from_this()) +
+            ">: wrong number of parameters"));
       }
-      return EVAL(expression, closure);
     } else {
-      return Runtime::ret_exception(
-          "FUNCTION " + name + " : wrong number of parameters\nis_macro: " +
-          std::to_string(is_macro) +
-          +"\nlast_is_variadic: " + std::to_string(last_is_variadic) +
-          "\narguments:\n" + debug_object(arguments) + "\npassed arguments:\n" +
-          debug_object(args) + "\n");
+      if (arguments->elements.size() == this->arguments->elements.size()) {
+        for (unsigned int i = 0; i < args->elements.size(); i++) {
+          closure->set(arguments->elements[i], args->elements[i]);
+        }
+      } else {
+        return to_obj(Runtime::ret_exception(
+            "Funcion <" + calling_env->get_key(shared_from_this()) +
+            ">: wrong number of parameters"));
+      }
     }
+    return EVAL(expression, closure);
   }
 }
 

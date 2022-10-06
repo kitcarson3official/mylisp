@@ -13,12 +13,14 @@ namespace ml {
 
 shared_ptr<Object> Runtime::message_signal = nil();
 shared_ptr<Object> Runtime::unhandled_exc = nil();
+shared_ptr<Object> Runtime::current_env = nil();
+
 bool catching = false;
-string def_f_name;
 
 Runtime::Runtime() {
   running = true;
   core_env = get_builtin();
+  Runtime::current_env = core_env;
 }
 
 const vector<std::string> keywords = {
@@ -265,8 +267,7 @@ shared_ptr<Object> EVAL(shared_ptr<Object> input,
               }
             if (valid) {
               return func(to_list(input_as_list->elements[1]),
-                          input_as_list->elements[2], repl_env,
-                          (def_f_name == "" ? "lambda" : def_f_name));
+                          input_as_list->elements[2], repl_env, "");
             } else {
               cout << "fn* parameters must be all symbols" << endl;
               exit(1);
@@ -284,8 +285,7 @@ shared_ptr<Object> EVAL(shared_ptr<Object> input,
                 largs->append(el);
               }
             if (valid) {
-              return func(largs, input_as_list->elements[2], repl_env,
-                          (def_f_name == "" ? "lambda" : def_f_name));
+              return func(largs, input_as_list->elements[2], repl_env, "");
             } else {
               cout << "fn* parameters must be all symbols" << endl;
               exit(1);
@@ -358,21 +358,11 @@ shared_ptr<Object> EVAL(shared_ptr<Object> input,
         } else if (first_as_symbol->value() == "def!") {
           if (input_as_list->elements.size() == 3) {
             shared_ptr<Object> key = input_as_list->elements[1];
-            switch (key->type) {
-            case SYMBOL:
-              def_f_name = to_symbol(key)->value();
-            case STRING:
-              def_f_name = to_str(key)->value();
-            case KEYWORD:
-              def_f_name = to_keyword(key)->value();
-            default:;
-            }
             shared_ptr<Object> value = input_as_list->elements[2];
             if (key->type == SYMBOL) {
               shared_ptr<Object> evalued_value = EVAL(value, repl_env);
               check_exc();
               repl_env->set(key, evalued_value);
-              def_f_name = "";
               return evalued_value;
             } else {
               cout << "def! accept only symbol as key" << endl;
@@ -387,22 +377,12 @@ shared_ptr<Object> EVAL(shared_ptr<Object> input,
         } else if (first_as_symbol->value() == "defmacro!") {
           if (input_as_list->elements.size() == 3) {
             shared_ptr<Object> key = input_as_list->elements[1];
-            switch (key->type) {
-            case SYMBOL:
-              def_f_name = to_symbol(key)->value();
-            case STRING:
-              def_f_name = to_str(key)->value();
-            case KEYWORD:
-              def_f_name = to_keyword(key)->value();
-            default:;
-            }
             shared_ptr<Object> value = input_as_list->elements[2];
             if (key->type == SYMBOL) {
               shared_ptr<Object> evalued_value = EVAL(value, repl_env);
               // check_exc();
               evalued_value->is_macro = true;
               repl_env->set(key, evalued_value);
-              def_f_name = "";
               return evalued_value;
             } else {
               cout << "def! accept only symbol as key" << endl;
@@ -490,37 +470,49 @@ shared_ptr<Object> EVAL(shared_ptr<Object> input,
         // APPLY /INVOKE
         shared_ptr<Function> f = to_function(first_item_evaluated);
         shared_ptr<List> args = list();
-        if (f->last_is_variadic >= 0) {
-          for (unsigned int i = 1; i < f->last_is_variadic; i++) {
-            args->append(evaluated_input->elements[i]);
-          }
-          shared_ptr<List> variadic_args = list();
-          for (unsigned int i = f->last_is_variadic;
-               i < evaluated_input->elements.size(); i++) {
-            variadic_args->append(evaluated_input->elements[i]);
-          }
-          args->append(variadic_args);
-        } else {
-          for (unsigned int i = 1; i < evaluated_input->elements.size(); i++)
-            args->append(evaluated_input->elements[i]);
-        }
         if (f->compiled) {
+          for (unsigned int i = 1; i < evaluated_input->elements.size(); i++) {
+            args->append(evaluated_input->elements[i]);
+          }
           return f->call(args);
         } else {
           shared_ptr<Environment> closure =
               make_shared<Environment>(f->calling_env);
-          if (args->elements.size() == f->arguments->elements.size()) {
-            for (unsigned int i = 0; i < args->elements.size(); i++) {
-              closure->set(f->arguments->elements[i], args->elements[i]);
+          if (f->last_is_variadic >= 0) {
+            if (evaluated_input->elements.size() > f->last_is_variadic) {
+              for (unsigned int i = 0; i < f->last_is_variadic; i++) {
+                closure->set(f->arguments->elements[i],
+                             evaluated_input->elements[i + 1]);
+              }
+              shared_ptr<List> varargs = list();
+              for (unsigned int i = f->last_is_variadic;
+                   i < evaluated_input->elements.size() - 1; i++) {
+                varargs->append(evaluated_input->elements[i + 1]);
+              }
+              closure->set(f->arguments->elements[f->last_is_variadic],
+                           varargs);
+            } else {
+              return to_obj(Runtime::ret_exception(
+                  "Funcion <" + f->calling_env->get_key(f->shared_from_this()) +
+                  ">: wrong number of parameters"));
             }
-            repl_env = closure;
-            input = f->expression;
-            continue;
           } else {
-            cout << "FUNCTION: wrong number of parameters" << endl;
-            exit(1);
-            return nil();
+            if (evaluated_input->elements.size() ==
+                f->arguments->elements.size() + 1) {
+              for (unsigned int i = 1; i < evaluated_input->elements.size();
+                   i++) {
+                closure->set(f->arguments->elements[i - 1],
+                             evaluated_input->elements[i]);
+              }
+            } else {
+              return to_obj(Runtime::ret_exception(
+                  "Funcion <" + f->calling_env->get_key(f->shared_from_this()) +
+                  ">: wrong number of parameters"));
+            }
           }
+          repl_env = closure;
+          input = f->expression;
+          continue;
         }
       } break;
       default:

@@ -182,7 +182,7 @@ public:
 // FUNCTION
 
 class Environment;
-class Function : public Object {
+class Function : public Object, public std::enable_shared_from_this<Function> {
 public:
   Function(std::function<shared_ptr<Object>(shared_ptr<List>)> f,
            std::string name, std::string help);

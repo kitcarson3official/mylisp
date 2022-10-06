@@ -20,6 +20,7 @@ public:
   static shared_ptr<Object> message_signal;
   static shared_ptr<Object> unhandled_exc;
   static shared_ptr<Exception> ret_exception(std::string message);
+  static shared_ptr<Object> current_env;
   shared_ptr<Environment> env();
   bool running;
 

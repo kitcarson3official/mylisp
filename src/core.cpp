@@ -1198,6 +1198,19 @@ shared_ptr<Environment> initialize() {
                 },
                 "meta"));
 
+  core->set(str("obj_name"),
+            func(
+                [](shared_ptr<List> args) {
+                  if (args->elements.size() == 1) {
+                    return to_obj(str(to_environment(Runtime::current_env)
+                                          ->get_key(args->elements[0])));
+                  } else {
+                    return to_obj(Runtime::ret_exception(
+                        "obj_name: bad argument passed"));
+                  }
+                },
+                "obj_name"));
+
   core->set(
       str("with-meta"),
       func(
@@ -1272,10 +1285,13 @@ shared_ptr<Environment> initialize() {
   )",
       core); */
 
-  rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) "
-      "(if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to "
-      "cond\")) (cons 'cond (rest (rest xs)))))))",
-      core);
+  // rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs)
+  // "
+  //     "(if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to "
+  //     "cond\")) (cons 'cond (rest (rest xs)))))))",
+  //     core);
+
+  rep("(defmacro! cond (fn* (& xs) (prn xs)))", core);
 
   rep("(def! *host-language* \"c++\")", core);
   return core;

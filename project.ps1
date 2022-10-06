@@ -23,10 +23,10 @@ function clean
   Remove-Item -Path "build" -Recurse -Force
 }
 
-function run()
+function run($param)
 {
   build
-  ./build/mylisp
+  ./build/mylisp $param
 }
 if ($args[0])
 {
@@ -41,7 +41,7 @@ if ($args[0])
     }
     "run"
     {
-      run
+      run($args[1])
     }
     default
     {Write-Output "command not valid"
