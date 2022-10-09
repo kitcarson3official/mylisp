@@ -10,7 +10,6 @@
 using std::cout, std::endl;
 
 namespace ml {
-
 shared_ptr<Object> Runtime::message_signal = nil();
 shared_ptr<Object> Runtime::unhandled_exc = nil();
 shared_ptr<Object> Runtime::current_env = nil();
