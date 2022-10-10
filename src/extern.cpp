@@ -1,10 +1,12 @@
 #include "linenoise.hpp"
 #include <string>
+#include <iostream>
 
 namespace ml {
 std::string readline(std::string input) {
   std::string ret;
-  linenoise::Readline(input.c_str(), ret);
+  std::cout << input;
+  std::cin >> ret;
   return ret;
 }
 } // namespace ml
